@@ -1,104 +1,128 @@
-package clientServer;
+package server;
 
 import java.io.PrintWriter;
 import java.sql.*;
-import java.sql.Date;
-import java.time.LocalDate;
 import java.util.*;
 
 public class RecommendationEngine {
-	
-    private Connection connection;
-    private PrintWriter out;
-    private Map<Integer, Integer> sentimentScores;
-    private Map<Integer, Set<String>> sentimentWordsMap;
-    private Map<Integer, Double> averageRatings;
+	private Connection connection;
+	private PrintWriter out;
+	private Map<Integer, Integer> sentimentScores;
+	private Map<Integer, Set<String>> sentimentWordsMap;
+	private Map<Integer, Double> averageRatings;
 
-    public RecommendationEngine(Connection connection, PrintWriter out) {
-        this.connection = connection;
-        this.out = out;
-        sentimentScores = new HashMap<>();
-        sentimentWordsMap = new HashMap<>();
-        averageRatings = new HashMap<>();
-    }
+	public RecommendationEngine(Connection connection, PrintWriter out) {
+		this.connection = connection;
+		this.out = out;
+		sentimentScores = new HashMap<>();
+		sentimentWordsMap = new HashMap<>();
+		averageRatings = new HashMap<>();
+	}
 
 	public void viewRecommendations() throws SQLException {
-    String query = "SELECT menu_item_id, GROUP_CONCAT(comment SEPARATOR ' ') as feedbacks, AVG(rating) as avg_rating " +
-                   "FROM feedback GROUP BY menu_item_id";
-    try (PreparedStatement statement = connection.prepareStatement(query);
-         ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-            int mealItemId = resultSet.getInt("menu_item_id");
-            System.out.println("mealItemId: "+mealItemId);
-            String feedbacks = resultSet.getString("feedbacks");
-            System.out.println("feedbacks: "+feedbacks);
-            double avgRating = resultSet.getDouble("avg_rating");
+		List<FoodItem> foodItems = getAllFoodItems();
 
-            Map<Integer, Set<String>> mappingmeal = new HashMap<>();
-            mappingmeal = SentimentWords.sentimentann(feedbacks);
-            
-            for (Map.Entry<Integer, Set<String>> entry : mappingmeal.entrySet()) {
-                Integer id = entry.getKey();
-                Set<String> stringSet = entry.getValue();
-
-                sentimentScores.put(mealItemId, id); // Store the id in the idMap
-                System.out.println("sentimentScores: "+sentimentScores);
-                sentimentWordsMap.put(mealItemId, stringSet); // Store the id and its set of strings in stringSetMap
-                System.out.println("sentimentWordsMap: "+sentimentWordsMap);
-            }
-            averageRatings.put(mealItemId, avgRating);
-        }
-    }
-    out.println("ID  | Meal Item         | Meal Type | Price  | Rating | Sentiment Words");
-    out.println("----|-------------------|-----------|--------|--------|----------------");
-
-    String bfQuery = "SELECT mi.menu_item_id, mi.name, mt.type_name, mi.price FROM meal_item mi " +
-            "JOIN meal_type mt ON mi.type_id = mt.type_id " +
-        "WHERE mt.type_name = 'Breakfast' " +
-        "ORDER BY mi.rating DESC"; //+
-        //"LIMIT 3";
-	    
-	String lunchQuery = "SELECT mi.menu_item_id, mi.name, mt.type_name, mi.price FROM meal_item mi " +
-                "JOIN meal_type mt ON mi.type_id = mt.type_id " +
-	        "WHERE mt.type_name = 'Lunch' " +
-	        "ORDER BY mi.rating DESC";//+
-	        //"LIMIT ";
-	
-	String dinnerQuery = "SELECT mi.menu_item_id, mi.name, mt.type_name, mi.price FROM meal_item mi " +
-                "JOIN meal_type mt ON mi.type_id = mt.type_id " +
-	        "WHERE mt.type_name = 'Dinner' " +
-	        "ORDER BY mi.rating DESC"; //+
-	        //"LIMIT 3";
-    
-	    method(bfQuery);
-	    method(lunchQuery);
-	    method(dinnerQuery);
-}
-	private void method( String mealQuery) throws SQLException {
-		try (PreparedStatement mealStatement = connection.prepareStatement(mealQuery);
-		ResultSet mealResultSet = mealStatement.executeQuery()) {
-		
-			while (mealResultSet.next()) {
-			 int id = mealResultSet.getInt("menu_item_id");
-			 String name = mealResultSet.getString("name");
-			 String mealType = mealResultSet.getString("mt.type_name");
-			 double price = mealResultSet.getDouble("price");
-			
-			 int sentimentScore = sentimentScores.getOrDefault(id, 3);
-			 System.out.println("sentimentWordsMap: "+sentimentWordsMap);
-			 Set<String> sentimentWords = sentimentWordsMap.getOrDefault(id, Collections.emptySet());
-			 double avgRating = averageRatings.getOrDefault(id, 3.0);
-			
-			 List<String> sortedWords = new ArrayList<>(sentimentWords);
-			 Collections.sort(sortedWords);
-			 if (sortedWords.size() > 3) {
-			     sortedWords = sortedWords.subList(0, 3);
-			 }
-		
-		    out.printf("%-4d| %-18s| %-10s| %-6.2f| %-6.2f| %-16s%n", id, name, mealType, price, avgRating, String.join(", ", sortedWords));
-			}
+		for (FoodItem foodItem : foodItems) {
+			FeedbackData feedbackData = getFeedbackDataForFoodItem(foodItem);
+			double rating = (feedbackData.getAvgRating() + foodItem.getRating()) / 2;
+			double score = (feedbackData.getAvgSentimentScore() + foodItem.getSentimentScore()) / 2;
+			Set<String> comments = new HashSet<>();
+			comments.addAll(feedbackData.getSentimentComments());
+			comments.addAll(foodItem.getSentimentComments());
+			foodItem.setAvgRating(rating);
+			foodItem.setAvgSentimentScore(score);
+			foodItem.setSentimentComments(comments);
 		}
-}
-	
-	
+
+		updateFoodItems(foodItems);
+	}
+
+	void updateFoodItems(List<FoodItem> foodItems) {
+		String updateSQL = "UPDATE meal_item SET rating = ?, sentiment_score = ?, sentiments = ? WHERE menu_item_id = ?";
+		try (PreparedStatement statement = connection.prepareStatement(updateSQL)) {
+
+			for (FoodItem foodItem : foodItems) {
+				int rate = (int) Math.ceil(foodItem.getAvgRating()) > 0 ? (int) Math.ceil(foodItem.getAvgRating()) : 1;
+				statement.setInt(1, rate);
+				statement.setDouble(2, foodItem.getAvgSentimentScore());
+				Set<String> sentimentsSet = foodItem.getSentimentComments();
+				StringJoiner joiner = new StringJoiner(",");
+				for (String sentiment : sentimentsSet) {
+					joiner.add(sentiment.trim());
+				}
+				String sentiments = joiner.toString();
+				statement.setString(3, sentiments);
+				statement.setInt(4, foodItem.getId());
+				statement.addBatch();
+			}
+			statement.executeBatch();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	FeedbackData getFeedbackDataForFoodItem(FoodItem foodItem) {
+		double rating, sentimentScore;
+		String sentimentComment;
+		FeedbackData feedbackData = new FeedbackData();
+		String query = "SELECT rating, sentiment_score, sentiments FROM feedback WHERE menu_item_id = ?";
+
+		try (PreparedStatement statement = connection.prepareStatement(query)) {
+			statement.setInt(1, foodItem.getId());
+			ResultSet resultSet = statement.executeQuery();
+			int count = 0;
+			double totalRating = 0, totalSentimentScore = 0;
+			Set<String> comments = new HashSet<>();
+
+			while (resultSet.next()) {
+				rating = resultSet.getDouble("rating");
+				sentimentScore = resultSet.getDouble("sentiment_score");
+				sentimentComment = resultSet.getString("sentiments");
+				totalRating += rating;
+				totalSentimentScore += sentimentScore;
+				String[] sentimentArray = sentimentComment.split(",\\s*");
+				comments.addAll(Arrays.asList(sentimentArray));
+				count++;
+			}
+
+			if (count > 0) {
+				feedbackData.setAvgRating(totalRating / count);
+				feedbackData.setAvgSentimentScore(totalSentimentScore / count);
+			}
+			feedbackData.setSentimentComments(comments);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return feedbackData;
+	}
+
+	List<FoodItem> getAllFoodItems() {
+		List<FoodItem> foodItems = new ArrayList<>();
+		String query = "SELECT mi.menu_item_id, mi.name, mi.rating, mi.sentiment_score, mt.type_name, mi.sentiments FROM meal_item mi JOIN meal_type mt ON mi.type_id = mt.type_id ORDER BY mi.menu_item_id";
+
+		try (PreparedStatement statement = connection.prepareStatement(query);
+				ResultSet resultSet = statement.executeQuery()) {
+
+			while (resultSet.next()) {
+				int id = resultSet.getInt("menu_item_id");
+				String name = resultSet.getString("name");
+				String mealType = resultSet.getString("mt.type_name");
+				int rating = resultSet.getInt("rating");
+				int sentimentScore = resultSet.getInt("sentiment_score");
+				String sentiments = resultSet.getString("sentiments");
+				Set<String> sentimentSet = new HashSet<>();
+				String[] elements = sentiments.split(",");
+				for (String element : elements) {
+					sentimentSet.add(element.trim());
+				}
+				FoodItem foodItem = new FoodItem(id, name, mealType, rating, sentimentScore, sentimentSet);
+				foodItems.add(foodItem);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		return foodItems;
+	}
 }
