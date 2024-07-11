@@ -2,59 +2,54 @@ package clientServer;
 
 import java.io.*;
 import java.net.*;
-import java.sql.*;
-
-import authentication.Authentication;
-import roles.Role;
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.json.JSONObject;
 
 public class ClientHandler extends Thread {
-    private Socket socket;
-    private Connection connection;
+	private Socket clientSocket;
+	private Connection connection;
 
-    public ClientHandler(Socket socket, Connection connection) {
-        this.socket = socket;
-        this.connection = connection;
-    }
+	public ClientHandler(Socket clientSocket, Connection connection) {
+		this.clientSocket = clientSocket;
+		this.connection = connection;
+	}
 
-    public void run() {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-
-            System.out.println("Waiting for client input...");
-            
-            Authentication auth = new Authentication(connection, in, out);
-            String role = auth.authenticateUser();
-            if (role != null) {
-                RoleHandler roleHandler = new RoleHandler(connection, in, out);
-                Role userRole = roleHandler.getRoleObject(role);
-
-                if (userRole != null) {
-                    boolean exit = false;
-                    while (!exit) {
-                        userRole.showOptions();
-                        String clientResponse = in.readLine();
-                        if (clientResponse == null) {
-                            System.out.println("Client disconnected.");
-                            break;
-                        }
-                        if (clientResponse.equalsIgnoreCase("exit")) {  
-                            exit = true;
-                            out.println("Exiting...");
-                        } else {
-                            userRole.handleAction(clientResponse);
-                        }
-                    }
-                }
-            }
-
-        } catch (IOException | SQLException ex) {
-            ex.printStackTrace();
-        } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+	@Override
+	public void run() {
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+				PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+			Authentication auth = new Authentication(connection, in, out);
+			String role = auth.authenticateUser();
+			String email = auth.getUserEmail();
+			String username = auth.getUserName();
+			if (role != null) {
+				RoleHandler roleHandler = new RoleHandler(connection, in, out, username);
+				Role userRole = roleHandler.getRoleObject(role);
+				if (userRole != null) {
+					boolean exit = false;
+					while (!exit) {
+						String jsonString = in.readLine();
+						JSONObject receivedJson = new JSONObject(jsonString);
+						String choice = receivedJson.getString("choice");
+						if (choice.equalsIgnoreCase("exit")) {
+							exit = true;
+							UserActivity userActivity = new UserActivity(email, connection);
+							userActivity.addLogOutInfo();
+						} else {
+							userRole.handleAction(choice);
+						}
+					}
+				}
+			}
+		} catch (IOException | SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				clientSocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 }
