@@ -15,4 +15,18 @@ public class Constants {
 	public static final String JDBC_USER = "root";
 	public static final String JDBC_PASSWORD = "root";
 	public static final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
+
+	// Authentication constants
+	public static final int MAX_ATTEMPTS = 3;
+	public static final String AUTHENTICATION_SUCCESS = "authenticated";
+	public static final String AUTHENTICATION_FAILED = "message";
+	public static final String ROLE = "role";
+	public static final String UNKNOWN_ROLE = "Unknown";
+	public static final String AUTHENTICATION_FAILED_MESSAGE = "Authentication failed. Attempts left: ";
+	public static final String MAX_ATTEMPTS_EXCEEDED_MESSAGE = "Maximum authentication attempts reached. User blocked.";
+
+	// SQL queries for user activity
+	public static final String INSERT_LOGIN_INFO = "INSERT INTO user_sessions (email_id, login_time) VALUES (?, NOW())";
+	public static final String UPDATE_LOGOUT_INFO = "UPDATE user_sessions SET logout_time = NOW() WHERE email_id = ? AND logout_time IS NULL";
+
 }
