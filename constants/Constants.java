@@ -65,4 +65,58 @@ public class Constants {
 	public static final String EXIT = "exit";
 	public static final String END_OF_MENU = "END_OF_MENU";
 	public static final String END_OF_OPTIONS = "END_OF_OPTIONS";
+
+	// SQL Queries for employee
+    public static final String CHECK_NOTIFICATIONS_TODAY = "SELECT COUNT(*) AS count FROM notifications WHERE DATE(notification_date) = CURDATE() AND username = ?";
+    public static final String DISPLAY_NOTIFICATIONS_TODAY = "SELECT id, notification_name FROM notifications WHERE DATE(notification_date) = CURDATE() AND username = ?";
+    public static final String NOTIFICATION_DETAILS_QUERY = "SELECT notification_name, item_name, price, availability_status FROM notifications WHERE id = ?";
+    public static final String FETCH_MENU_ITEMS_QUERY = "SELECT meal_item_id, meal_item_name, rating, sentiment_score, sentiments FROM menu_items WHERE meal_type = ?";
+    public static final String CHECK_VOTE_QUERY = "SELECT 1 FROM votes WHERE username = ? AND item_name = ? AND DATE(vote_date) = CURDATE()";
+    public static final String INSERT_VOTE_QUERY = "INSERT INTO votes (item_id, username) VALUES (?, ?)";
+    public static final String FETCH_ITEM_ID_QUERY = "SELECT menu_item_id FROM menu_items WHERE meal_item_name = ?";
+    public static final String UPDATE_VOTE_COUNT_QUERY = "UPDATE menu_items SET vote_count = vote_count + 1 WHERE menu_item_id = ?";
+    public static final String CHECK_FEEDBACK_QUERY = "SELECT 1 FROM feedback WHERE username = ? AND item_name = ? AND DATE(feedback_date) = CURDATE()";
+    public static final String INSERT_FEEDBACK_QUERY = "INSERT INTO feedback (item_id, rating, comment, username, sentiment_score, sentiments) VALUES (?, ?, ?, ?, ?, ?)";
+    public static final String SHOW_MENU_QUERY = "SELECT name, type_name, rating, sentiment_score, sentiments FROM menu_items";
+    public static final String UPDATE_PROFILE_QUERY = "UPDATE employee_profile SET foodcategory = ?, spicelevel = ?, foodtypes = ?, sweettooth = ? WHERE username = ?";
+    public static final String SELECT_OPTIONS_QUERY = "SELECT id, type_name FROM %s";
+
+	// Sentiment constants
+	public static final int SCORE_NEGATIVE_STRONG = 1;
+    public static final int SCORE_NEGATIVE_WEAK = 2;
+    public static final int SCORE_NEUTRAL = 3;
+    public static final int SCORE_POSITIVE_WEAK = 4;
+    public static final int SCORE_POSITIVE_STRONG = 5;
+	public static final Set<String> NEGATIVE_STRONG = new HashSet<>(
+			Arrays.asList("Awful", "Horrible", "Terrible", "Disgusting", "Hate", "Unbearable", "Repulsive", "Atrocious",
+					"Dreadful", "Appalling", "Abysmal", "Nauseating", "Revolting", "Loathsome", "Deplorable",
+					"Abominable", "Vile", "Detestable", "Unpleasant", "Inferior", "Miserable", "Horrendous",
+					"Distasteful", "Grotesque", "Horrific", "Foul", "Putrid", "Vicious", "Heinous", "Diabolical"))
+			.stream().map(String::toLowerCase).collect(Collectors.toSet());
+
+	public static final Set<String> NEGATIVE_WEAK = new HashSet<>(Arrays.asList("Bad", "Poor", "Disliked",
+			"Unsatisfactory", "Subpar", "Mediocre", "Unpleasant", "Disappointing", "Inferior", "Lacking",
+			"Unimpressive", "Deficient", "Lousy", "Substandard", "Unacceptable", "Faulty", "Flawed", "Inadequate",
+			"Defective", "Unappealing", "Lamentable", "Unfortunate", "Second-rate", "Shoddy", "Mediocre", "Substandard",
+			"Unfulfilling", "Regrettable", "Lackluster", "Passable")).stream().map(String::toLowerCase)
+			.collect(Collectors.toSet());
+
+	public static final Set<String> NEUTRAL = new HashSet<>(Arrays.asList("Average", "Okay", "Fine", "Satisfactory",
+			"Indifferent", "Moderate", "Fair", "Unremarkable", "Tolerable", "Middling", "Passable", "Standard",
+			"Acceptable", "Usual", "Ordinary", "Plain", "Commonplace", "Middling", "Routine", "Regular", "So-so",
+			"Workable", "Decent", "Moderate", "Reasonable", "Mediocre", "Average", "All right", "Standard", "Adequate"))
+			.stream().map(String::toLowerCase).collect(Collectors.toSet());
+
+	public static final Set<String> POSITIVE_WEAK = new HashSet<>(Arrays.asList("Good", "Enjoyable", "Pleasant",
+			"Satisfying", "Nice", "Liked", "Delightful", "Pleasing", "Admirable", "Commendable", "Worthy", "Gratifying",
+			"Pleasurable", "Appealing", "Lovely", "Congenial", "Agreeable", "Charming", "Delightful", "Rewarding",
+			"Pleasurable", "Favorable", "Admirable", "Superior", "Nice", "Praiseworthy", "Positive", "Gratifying",
+			"Encouraging", "Pleasant")).stream().map(String::toLowerCase).collect(Collectors.toSet());
+
+	public static final Set<String> POSITIVE_STRONG = new HashSet<>(Arrays.asList("Excellent", "Fantastic", "Amazing",
+			"Wonderful", "Outstanding", "Superb", "Love", "Exceptional", "Marvelous", "Brilliant", "Terrific",
+			"Remarkable", "Phenomenal", "Extraordinary", "Magnificent", "Perfect", "Splendid", "Glorious", "Stellar",
+			"Exquisite", "Superb", "Unmatched", "Unbeatable", "Impressive", "Stunning", "Sensational", "Divine",
+			"Awesome", "Superior", "Tasty", "Sweet", "Top-notch")).stream().map(String::toLowerCase)
+			.collect(Collectors.toSet());
 }
