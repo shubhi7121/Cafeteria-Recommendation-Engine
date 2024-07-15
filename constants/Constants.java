@@ -29,4 +29,8 @@ public class Constants {
 	public static final String INSERT_LOGIN_INFO = "INSERT INTO user_sessions (email_id, login_time) VALUES (?, NOW())";
 	public static final String UPDATE_LOGOUT_INFO = "UPDATE user_sessions SET logout_time = NOW() WHERE email_id = ? AND logout_time IS NULL";
 
+	// Role constants
+	public static final String ROLE_ADMIN = "admin";
+	public static final String ROLE_CHEF = "chef";
+	public static final String ROLE_EMPLOYEE = "employee";
 }
