@@ -12,4 +12,7 @@ public class Constants {
 	public static final String EXIT = "exit";
 	public static final String END_OF_MENU = "END_OF_MENU";
 	public static final String END_OF_OPTIONS = "END_OF_OPTIONS";
+
+	// Meal type constants
+	public static final String[] MEAL_TYPES = { "breakfast", "lunch", "dinner" };
 }
